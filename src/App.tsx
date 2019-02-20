@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React, { Component, ChangeEvent } from 'react'
 import './App.css'
 import Metronome from './Metronome'
 
@@ -26,13 +26,9 @@ class App extends Component {
   }
 
   setTempo (e) {
-    console.log('event target value', e.target.value)
-
     this.setState({
-      selectedTempo: e.target.value
+      selectedTempo: e.currentTarget.value
     })
-
-    console.log(this.state.selectedTempo)
   }
 
   render() {

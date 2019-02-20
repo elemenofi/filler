@@ -24,24 +24,21 @@ class Metronome {
   // length of "beep" (in seconds)      
   stepLength = 0.1
 
-  // array of objects for the notes that have been put into the web audio,
-  // and may or may not have played yet.
-  stepsInQueue: {
-    note: number, 
-    time: number
-  }[] = []
+  audioElement: HTMLAudioElement | null
+  track: MediaElementAudioSourceNode
 
   constructor () {
     this.audioContext = new AudioContext()
-
-    // if we wanted to load audio files, etc., this is where we should do it.  
+    this.audioElement = document.querySelector('audio')
+    this.track = this.audioContext.createMediaElementSource(this.audioElement!)
+    this.track.connect(this.audioContext.destination)
 
     this.timerWorker = new Worker('./MetronomeWorker.js')
 
     this.timerWorker.onmessage = (e) => {
       if (e.data === 'tick') {
         // console.log('tick!')
-        this.scheduler()
+        this.scheduleSteps()
       } else {
         console.log(e.data)
       }
@@ -54,54 +51,31 @@ class Metronome {
     this.isPlaying = !this.isPlaying
 
     if (this.isPlaying) {
-      this.currentStep = 0
       this.nextStepTime = this.audioContext.currentTime
-      this.timerWorker.postMessage('start')
+      this.timerWorker.postMessage('startWorker')
       return 'stop'
     } else {
-      this.timerWorker.postMessage('stop')
-      return 'play'
+      this.timerWorker.postMessage('stopWorker')
+      return 'play' 
     }
   }
 
-  nextNote () {
-    // Advance current note and time by a 16th note...
-    // Notice this picks up the CURRENT 
-    // tempo value to calculate beat length.
-    const secondsPerBeat = 60.0 / this.tempo
-
-    // Add beat length to last beat time
-    this.nextStepTime += 0.25 * secondsPerBeat
-
-    // Advance the beat number, wrap to zero
-    this.currentStep++    
-
-    if (this.currentStep == 16) {
-      this.currentStep = 0
-    }
-  }
-
-  scheduleNote (beatNumber: number, time: number) {
-    // push the note on the queue, even if we're not playing.
-    this.stepsInQueue.push({ 
-      note: beatNumber, 
-      time: time 
-    })
-
-    let osc = this.audioContext.createOscillator()
-    osc.connect(this.audioContext.destination)
-    osc.frequency.value = 440.0
-    osc.start(time)
-    osc.stop(time + this.stepLength)
-  }
-
-  scheduler () {
-    // while there are notes that will need to play before the next interval, 
+  scheduleSteps () {
+    // while there are steps that will need to play before the next worker interval, 
     // schedule them and advance the pointer.
     while (this.nextStepTime < this.audioContext.currentTime + this.scheduleAheadTime) {
-      this.scheduleNote(this.currentStep, this.nextStepTime)
-      this.nextNote()
+      this.doStep()
+      this.nextStep()
     }
+  }
+
+  doStep () {
+    this.audioElement!.play()
+  }
+
+  nextStep () {
+    const secondsPerBeat = 60.0 / this.tempo
+    this.nextStepTime += 0.25 * secondsPerBeat
   }
 
   setTempo (tempo: number) {

@@ -2,7 +2,7 @@ var timerID = null
 var interval = 100
 
 self.onmessage = (e) => {
-	if (e.data === 'start') {
+	if (e.data === 'startWorker') {
 		console.log('MetronomeWorker: start')
 
 		timerID = setInterval(() => {
@@ -19,7 +19,7 @@ self.onmessage = (e) => {
 				postMessage('tick')
 			}, interval)
 		}
-	} else if (e.data === 'stop') {
+	} else if (e.data === 'stopWorker') {
 		console.log('MetronomeWorker: stop')
 		clearInterval(timerID)
 		timerID = null
