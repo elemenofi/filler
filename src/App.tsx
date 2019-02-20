@@ -6,7 +6,7 @@ class App extends Component {
   metronome: Metronome
 
   state = {
-    selectedTempo: 120
+    selectedTempo: 0
   }
 
   constructor (props: {}) {
@@ -15,6 +15,7 @@ class App extends Component {
     this.handlePlay = this.handlePlay.bind(this)
     this.handleTempo = this.handleTempo.bind(this)
     this.setTempo = this.setTempo.bind(this)
+    this.state.selectedTempo = this.metronome.tempo
   }
 
   handlePlay () {

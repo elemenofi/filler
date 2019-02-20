@@ -1,81 +1,74 @@
 class Metronome {
-  timerWorker: Worker
-  audioContext: AudioContext
-
+  clock // number
+  audioContext: AudioContext | undefined
   isPlaying = false
-  tempo = 120.0    
-
-  // How far ahead to schedule audio (sec)
-  // This is calculated from lookahead, and overlaps 
-  // with next interval (in case the timer is late)
-  scheduleAheadTime = 0.1
-  // How frequently to call scheduling function 
-  lookahead = 25.0
-
-  // The start time of the entire sequence.
-  startTime = 0
-  // when the next step is due.
-  nextStepTime = 0.0
-
-  // current16thNote
+  tempo = 140.0
+  MINUTE = 60000
+  RESOLUTION = 4
   currentStep = 0
-  // 0 == 16th, 1 == 8th, 2 == quarter note       
-  stepResolution = 0 
-  // length of "beep" (in seconds)      
-  stepLength = 0.1
 
-  audioElement: HTMLAudioElement | null
-  track: MediaElementAudioSourceNode
+  instruments = ['kick', 'clap', 'hh', 'oh']
+  audioElements: any = {}
+  tracks: any = {}
+
+  steps = {
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+    hh:   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    oh:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+  }
 
   constructor () {
+  }
+
+  createAudioContext () {
     this.audioContext = new AudioContext()
-    this.audioElement = document.querySelector('audio')
-    this.track = this.audioContext.createMediaElementSource(this.audioElement!)
-    this.track.connect(this.audioContext.destination)
+    this.instruments.forEach((instrument) => this.createInstrument(instrument))
+  }
 
-    this.timerWorker = new Worker('./MetronomeWorker.js')
-
-    this.timerWorker.onmessage = (e) => {
-      if (e.data === 'tick') {
-        // console.log('tick!')
-        this.scheduleSteps()
-      } else {
-        console.log(e.data)
-      }
-    }
-
-    this.timerWorker.postMessage({ interval: this.lookahead })
+  createInstrument (instrument) {
+    this.audioElements[instrument] = document.querySelector('.' + instrument)
+    this.tracks[instrument] = this.audioContext!.createMediaElementSource(this.audioElements![instrument])
+    this.tracks[instrument].connect(this.audioContext!.destination)
   }
 
   play () {
+    if (!this.audioContext) {
+      this.createAudioContext()
+    }
+    
     this.isPlaying = !this.isPlaying
-
-    if (this.isPlaying) {
-      this.nextStepTime = this.audioContext.currentTime
-      this.timerWorker.postMessage('startWorker')
-      return 'stop'
-    } else {
-      this.timerWorker.postMessage('stopWorker')
-      return 'play' 
+    
+    if (!this.isPlaying) {
+      clearInterval(this.clock)
+      return
     }
+
+    this.startInterval()
   }
 
-  scheduleSteps () {
-    // while there are steps that will need to play before the next worker interval, 
-    // schedule them and advance the pointer.
-    while (this.nextStepTime < this.audioContext.currentTime + this.scheduleAheadTime) {
-      this.doStep()
-      this.nextStep()
-    }
+  startInterval () {
+    this.clock = setInterval(() => {
+      console.log('Step' + this.currentStep)
+
+      this.instruments.forEach((instrument) => {
+        if (this.steps[instrument]) console.log(this.steps[instrument][this.currentStep])
+        if (this.steps[instrument] && this.steps[instrument][this.currentStep]) {
+          this.audioElements[instrument].play()
+        }
+      })
+
+      this.currentStep++
+
+      if (this.currentStep === 16) {
+        this.currentStep = 0
+      }
+
+    }, this.getInterval())
   }
 
-  doStep () {
-    this.audioElement!.play()
-  }
-
-  nextStep () {
-    const secondsPerBeat = 60.0 / this.tempo
-    this.nextStepTime += 0.25 * secondsPerBeat
+  getInterval (): number {
+    return (this.MINUTE / this.tempo) / this.RESOLUTION
   }
 
   setTempo (tempo: number) {
