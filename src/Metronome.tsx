@@ -3,6 +3,7 @@ import React from 'react';
 import App from './App';
 
 class Metronome {
+  worker // Worker
   clock // number
   audioContext: AudioContext | undefined
   isPlaying = false
@@ -15,6 +16,9 @@ class Metronome {
   audioElements: any = {}
   tracks: any = {}
   delays: any = {}
+  filters: {
+    [key: string]: BiquadFilterNode
+  } = {}
 
   steps = {
     kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
@@ -24,6 +28,15 @@ class Metronome {
   }
 
   constructor () {
+    this.createWorker()
+  }
+
+  createWorker () {
+    this.worker = new Worker('./MetronomeWorker.js')
+    this.sendIntervalToWorker()
+    this.worker.addEventListener('message', (e) => {
+      if (e.data === 'tick') this.advanceStep()
+    })
   }
 
   changeStep (step: number, track: string) {
@@ -38,11 +51,15 @@ class Metronome {
   createInstrument (instrument) {
     this.audioElements[instrument] = document.querySelector('.' + instrument)
     this.tracks[instrument] = this.audioContext!.createMediaElementSource(this.audioElements![instrument])
+    // this.filters[instrument] = this.audioContext!.createBiquadFilter()
+    // this.filters[instrument].type = 'lowpass'
     // this.delays[instrument] = this.audioContext!.createDelay()
     // this.delays[instrument].delayTime.value = 0.1;
     // this.tracks[instrument].connect(this.delays[instrument])
+    // this.tracks[instrument].connect(this.filters[instrument])
     this.tracks[instrument].connect(this.audioContext!.destination)
     // this.delays[instrument].connect(this.audioContext!.destination)
+    // this.filters[instrument].connect(this.audioContext!.destination)
   }
 
   play () {
@@ -52,13 +69,13 @@ class Metronome {
     
     this.isPlaying = !this.isPlaying
     
-    if (!this.isPlaying) {
+    if (this.isPlaying) {
+      this.worker.postMessage('startWorker')
+    } else if (!this.isPlaying) {
       this.currentStep = 0
-      clearInterval(this.clock)
+      this.worker.postMessage('stopWorker')
       return
     }
-
-    this.startInterval()
   }
 
   drawUi () {
@@ -67,11 +84,16 @@ class Metronome {
 
   advanceStep () {
     this.instruments.forEach((instrument) => {
-      if (this.steps[instrument] && this.steps[instrument][this.currentStep] === 1) {
-        console.log('playing step ' + this.currentStep)
-        this.audioElements[instrument].pause()
-        this.audioElements[instrument].currentTime = 0;
-        this.audioElements[instrument].play()
+      const _instrument = this.steps[instrument]
+      const _audio = this.audioElements[instrument]
+
+      // this.filters[instrument].frequency.setValueAtTime(1000, this.audioContext!.currentTime + this.getInterval())
+      // this.filters[instrument].gain.setValueAtTime(1000, this.audioContext!.currentTime +  + this.getInterval())
+
+      if (_instrument && _instrument[this.currentStep] === 1) {
+        _audio.pause()
+        _audio.currentTime = 0;
+        _audio.play()
       }
     })
 
@@ -84,10 +106,6 @@ class Metronome {
     }
   }
 
-  startInterval () {
-    this.clock = setInterval(() => this.advanceStep(), this.getInterval())
-  }
-
   getInterval (): number {
     return (this.MINUTE / this.tempo) / this.RESOLUTION
   }
@@ -95,6 +113,11 @@ class Metronome {
   setTempo (tempo: number) {
     console.log('Metronome: setting new tempo to ' + tempo)
     this.tempo = tempo
+    this.sendIntervalToWorker()
+  }
+
+  sendIntervalToWorker () {
+    this.worker.postMessage({ interval: this.getInterval()})
   }
 }
 

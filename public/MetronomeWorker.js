@@ -4,6 +4,7 @@ var interval = 100
 self.onmessage = (e) => {
 	if (e.data === 'startWorker') {
 		console.log('MetronomeWorker: start')
+		postMessage('tick')
 
 		timerID = setInterval(() => {
 			postMessage('tick')
