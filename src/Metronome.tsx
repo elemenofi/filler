@@ -1,8 +1,12 @@
+import ReactDOM from 'react-dom';
+import React from 'react';
+import App from './App';
+
 class Metronome {
   clock // number
   audioContext: AudioContext | undefined
   isPlaying = false
-  tempo = 140.0
+  tempo = 120.0
   MINUTE = 60000
   RESOLUTION = 4
   currentStep = 0
@@ -10,15 +14,20 @@ class Metronome {
   instruments = ['kick', 'clap', 'hh', 'oh']
   audioElements: any = {}
   tracks: any = {}
+  delays: any = {}
 
   steps = {
-    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
-    hh:   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    oh:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+    clap: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    hh:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    oh:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   }
 
   constructor () {
+  }
+
+  changeStep (step: number, track: string) {
+    this.steps[track][step] = (this.steps[track][step]) ? 0 : 1
   }
 
   createAudioContext () {
@@ -29,7 +38,11 @@ class Metronome {
   createInstrument (instrument) {
     this.audioElements[instrument] = document.querySelector('.' + instrument)
     this.tracks[instrument] = this.audioContext!.createMediaElementSource(this.audioElements![instrument])
+    // this.delays[instrument] = this.audioContext!.createDelay()
+    // this.delays[instrument].delayTime.value = 0.1;
+    // this.tracks[instrument].connect(this.delays[instrument])
     this.tracks[instrument].connect(this.audioContext!.destination)
+    // this.delays[instrument].connect(this.audioContext!.destination)
   }
 
   play () {
@@ -40,6 +53,7 @@ class Metronome {
     this.isPlaying = !this.isPlaying
     
     if (!this.isPlaying) {
+      this.currentStep = 0
       clearInterval(this.clock)
       return
     }
@@ -47,24 +61,31 @@ class Metronome {
     this.startInterval()
   }
 
-  startInterval () {
-    this.clock = setInterval(() => {
-      console.log('Step' + this.currentStep)
+  drawUi () {
+    ReactDOM.render(<App />, document.getElementById('root'))
+  }
 
-      this.instruments.forEach((instrument) => {
-        if (this.steps[instrument]) console.log(this.steps[instrument][this.currentStep])
-        if (this.steps[instrument] && this.steps[instrument][this.currentStep]) {
-          this.audioElements[instrument].play()
-        }
-      })
-
-      this.currentStep++
-
-      if (this.currentStep === 16) {
-        this.currentStep = 0
+  advanceStep () {
+    this.instruments.forEach((instrument) => {
+      if (this.steps[instrument] && this.steps[instrument][this.currentStep] === 1) {
+        console.log('playing step ' + this.currentStep)
+        this.audioElements[instrument].pause()
+        this.audioElements[instrument].currentTime = 0;
+        this.audioElements[instrument].play()
       }
+    })
 
-    }, this.getInterval())
+    this.drawUi()
+
+    this.currentStep++
+
+    if (this.currentStep === 16) {
+      this.currentStep = 0
+    }
+  }
+
+  startInterval () {
+    this.clock = setInterval(() => this.advanceStep(), this.getInterval())
   }
 
   getInterval (): number {
