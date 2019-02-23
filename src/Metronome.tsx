@@ -41,7 +41,7 @@ class Metronome {
     this.worker = new Worker('./MetronomeWorker.js')
     this.sendIntervalToWorker()
     this.worker.addEventListener('message', (e) => {
-      if (e.data === 'tick') this.advanceStep()
+      if (e.data === 'step') this.doStep()
     })
   }
 
@@ -89,20 +89,29 @@ class Metronome {
     ReactDOM.render(<App />, document.getElementById('root'))
   }
 
-  advanceStep () {
+  playAudio () {
     this.instruments.forEach((instrument) => {
       const _instrument = this.steps[instrument]
       const _audio = this.audioElements[instrument]
 
       if (_instrument && _instrument[this.currentStep] === 1) {
-        _audio.pause()
-        _audio.currentTime = 0;
+        if (_audio.currentTime !== 0) {
+          _audio.pause()
+          _audio.currentTime = 0;
+        }
+        
         _audio.play()
       }
     })
+  }
 
+  doStep () {
+    this.playAudio()
     this.drawUi()
+    this.advanceStep()
+  }
 
+  advanceStep () {
     this.currentStep++
 
     if (this.currentStep === 16) {

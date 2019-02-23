@@ -4,10 +4,10 @@ var interval = 100
 self.onmessage = (e) => {
 	if (e.data === 'startWorker') {
 		console.log('MetronomeWorker: start')
-		postMessage('tick')
+		postMessage('step')
 
 		timerID = setInterval(() => {
-			postMessage('tick')
+			postMessage('step')
 		}, interval)
 	} else if (e.data.interval) {
 		console.log('MetronomeWorker: Lookahead interval = ' + e.data.interval)
@@ -17,7 +17,7 @@ self.onmessage = (e) => {
 			clearInterval(timerID)
 
 			timerID = setInterval(() => {
-				postMessage('tick')
+				postMessage('step')
 			}, interval)
 		}
 	} else if (e.data === 'stopWorker') {

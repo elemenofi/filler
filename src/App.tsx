@@ -86,20 +86,7 @@ class App extends Component {
     })
   }
 
-  kickHandleChange = (value) => {
-    this.handleFrequencyChange(value, 'kick')
-  }
-  clapHandleChange = (value) => {
-    this.handleFrequencyChange(value, 'clap')
-  }
-  hhHandleChange = (value) => {
-    this.handleFrequencyChange(value, 'hh')
-  }
-  ohHandleChange = (value) => {
-    this.handleFrequencyChange(value, 'oh')
-  }
-
-  handleFrequencyChange = (value, track) => {
+  handleFrequencyChange = (track, value) => {
     const filterFrequencies = {...this.state.filterFrequencies}
     filterFrequencies[track] = value;
     this.setState({filterFrequencies})
@@ -145,7 +132,7 @@ class App extends Component {
               max={this.metronome.MAXLOWPASSFREQ}
               value={this.state.filterFrequencies[track]}
               orientation="vertical"
-              onChange={this[track + 'HandleChange']}
+              onChange={this.handleFrequencyChange.bind(this, track)}
             />  
           </div>
         })}
