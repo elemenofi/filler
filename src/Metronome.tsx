@@ -2,39 +2,74 @@ import ReactDOM from 'react-dom';
 import React from 'react';
 import App from './App';
 
+export class Track {
+  MAXLOWPASS = 8000
+  
+  name: string
+  context: AudioContext
+  element: HTMLMediaElement
+  audio: MediaElementAudioSourceNode
+  filter: BiquadFilterNode
+  delay: DelayNode
+  steps: (0 | 1) []
+
+  constructor(name: string, context: AudioContext) {
+    this.name = name
+    this.context = context
+    this.element = document.querySelector('.' + name) as HTMLMediaElement
+    this.audio = this.context.createMediaElementSource(this.element)
+    this.delay = this.context.createDelay()
+    this.filter = this.context.createBiquadFilter()
+    this.delay.delayTime.value = 100
+    this.filter.type = 'lowpass'
+    this.filter.frequency.setValueAtTime(this.MAXLOWPASS, this.context.currentTime)
+    this.filter.gain.setValueAtTime(100, this.context.currentTime)
+    this.steps = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1]
+    this.audio.connect(this.filter)
+    this.filter.connect(this.context.destination)
+    this.filter.connect(this.delay)
+  }
+
+  play (step: number) {
+    if (this.steps[step] === 1) {
+      if (this.element.currentTime !== 0) {
+        this.element.pause()
+        this.element.currentTime = 0;
+      }
+      
+      this.element.play()
+    }
+  }
+
+  changeStep (step: number) {
+    this.steps[step] = (this.steps[step]) ? 0 : 1
+  }
+
+  setFilterFrequency (frequency: number) {
+    this.filter.frequency.setValueAtTime(frequency, this.context.currentTime)
+  }
+}
+
 class Metronome {
   worker // Worker
   clock // number
-  audioContext: AudioContext | undefined
+  audioContext: AudioContext
   isPlaying = false
   tempo = 120.0
   MINUTE = 60000
   RESOLUTION = 4
-  MAXLOWPASSFREQ = 8000
   currentStep = 0
   
   instruments = ['kick', 'clap', 'hh', 'oh']
-  audioElements: any = {}
-  tracks: any = {}
-  delays: any = {}
-  filters: {
-    [key: string]: BiquadFilterNode
-  } = {}
-  filterFrequencies: {
-    [key: string]: number
-  } = {
-  }
 
-  steps = {
-    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-    hh:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    oh:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
-  }
+  tracks: {
+    [key:string]: Track
+  } = {}
 
   constructor () {
+    this.audioContext = new AudioContext()
     this.createWorker()
-    this.createAudioContext()
+    this.createTracks()
   }
 
   createWorker () {
@@ -45,32 +80,10 @@ class Metronome {
     })
   }
 
-  changeStep (step: number, track: string) {
-    this.steps[track][step] = (this.steps[track][step]) ? 0 : 1
-  }
-
-  createAudioContext () {
-    this.audioContext = new AudioContext()
-    this.instruments.forEach((instrument) => this.createInstrument(instrument))
-  }
-
-  createInstrument (instrument) {
-    this.audioElements[instrument] = document.querySelector('.' + instrument)
-    this.tracks[instrument] = this.audioContext!.createMediaElementSource(this.audioElements![instrument])
-    this.filters[instrument] = this.audioContext!.createBiquadFilter()
-    this.delays[instrument] = this.audioContext!.createDelay()
-
-    this.filters[instrument].type = 'lowpass'
-    this.filters[instrument].frequency.setValueAtTime(this.MAXLOWPASSFREQ, this.audioContext!.currentTime)
-    this.filterFrequencies[instrument] = this.MAXLOWPASSFREQ
-    this.filters[instrument].gain.setValueAtTime(100, this.audioContext!.currentTime)
-    
-    this.delays[instrument].delayTime.value = 100;
-
-    this.tracks[instrument].connect(this.filters[instrument])
-    this.filters[instrument].connect(this.audioContext!.destination)
-    this.filters[instrument].connect(this.delays[instrument])
-    // this.delays[instrument].connect(this.audioContext!.destination)
+  createTracks () {
+    this.instruments.forEach((instrument) => {
+      this.tracks[instrument] = new Track(instrument, this.audioContext)
+    })
   }
 
   play () {    
@@ -85,30 +98,20 @@ class Metronome {
     }
   }
 
-  drawUi () {
-    ReactDOM.render(<App />, document.getElementById('root'))
-  }
-
-  playAudio () {
-    this.instruments.forEach((instrument) => {
-      const _instrument = this.steps[instrument]
-      const _audio = this.audioElements[instrument]
-
-      if (_instrument && _instrument[this.currentStep] === 1) {
-        if (_audio.currentTime !== 0) {
-          _audio.pause()
-          _audio.currentTime = 0;
-        }
-        
-        _audio.play()
-      }
-    })
-  }
-
   doStep () {
     this.playAudio()
     this.drawUi()
     this.advanceStep()
+  }
+
+  playAudio () {
+    Object.keys(this.tracks).forEach((track) => {
+      this.tracks[track].play(this.currentStep)
+    })
+  }
+
+  drawUi () {
+    ReactDOM.render(<App />, document.getElementById('root'))
   }
 
   advanceStep () {
@@ -127,11 +130,6 @@ class Metronome {
     console.log('Metronome: setting new tempo to ' + tempo)
     this.tempo = tempo
     this.sendIntervalToWorker()
-  }
-
-  setFilterFrequency (track: string, frequency: number) {
-    this.filterFrequencies[track] = frequency
-    this.filters[track].frequency.setValueAtTime(frequency, this.audioContext!.currentTime)
   }
 
   sendIntervalToWorker () {

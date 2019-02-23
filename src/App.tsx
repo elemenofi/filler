@@ -1,11 +1,11 @@
 import React, { Component } from 'react'
 import './App.css'
-import Metronome from './Metronome'
+import Metronome, { Track } from './Metronome'
 import Slider from 'react-rangeslider'
 
 interface StepProps {
   step: number
-  track: string
+  track: Track
   metronome: Metronome
   pressed: string
 }
@@ -19,9 +19,12 @@ class Step extends Component<StepProps, StepState> {
     pressed: 'passive'
   }
 
+  track: Track
+
   constructor (props: StepProps) {
     super(props)
     this.pressStep = this.pressStep.bind(this)
+    this.track = this.props.track
   }
 
   componentDidMount () {
@@ -29,7 +32,7 @@ class Step extends Component<StepProps, StepState> {
   }
 
   pressStep () {
-    this.props.metronome!.changeStep(this.props.step, this.props.track)
+    this.track.changeStep(this.props.step)
     this.setState({ pressed: (this.state.pressed === 'pressed') ? 'passive' : 'pressed' })
   }
 
@@ -67,8 +70,8 @@ class App extends Component {
     this.handleTempo = this.handleTempo.bind(this)
     this.setTempo = this.setTempo.bind(this)
     this.state.selectedTempo = this.metronome.tempo
-    Object.keys(this.state.filterFrequencies).forEach((inst) => {
-      this.state.filterFrequencies[inst] = this.metronome.filterFrequencies[inst]
+    Object.keys(this.metronome.tracks).forEach((track) => {
+      this.state.filterFrequencies[track] = this.metronome.tracks[track].filter.frequency
     })
   }
 
@@ -90,22 +93,22 @@ class App extends Component {
     const filterFrequencies = {...this.state.filterFrequencies}
     filterFrequencies[track] = value;
     this.setState({filterFrequencies})
-    this.metronome.setFilterFrequency(track, value)
+    this.metronome.tracks[track].setFilterFrequency(value)
   }
 
   render() {
-    const tracks = Object.keys(this.metronome.steps)
+    const tracks = Object.keys(this.metronome.tracks)
 
     return (
       <div>
         {tracks.map((track, i) => {
           return <div key={i}>
-            {this.metronome.steps[track].map((step, i) => {
+            {this.metronome.tracks[track].steps.map((step, i) => {
               return <Step
                 key={i} 
                 step={i} 
                 metronome={this.metronome} 
-                track={track} 
+                track={this.metronome.tracks[track]} 
                 pressed={(step === 1) ? 'pressed' : 'passive'}
               />
             })}
@@ -129,14 +132,13 @@ class App extends Component {
           return <div key={i}>
             <Slider
               min={0}
-              max={this.metronome.MAXLOWPASSFREQ}
+              max={this.metronome.tracks[track].MAXLOWPASS}
               value={this.state.filterFrequencies[track]}
               orientation="vertical"
               onChange={this.handleFrequencyChange.bind(this, track)}
             />  
           </div>
         })}
-        
       </div>
     )
   }
