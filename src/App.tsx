@@ -1,6 +1,7 @@
-import React, { Component, ChangeEvent } from 'react'
+import React, { Component } from 'react'
 import './App.css'
 import Metronome from './Metronome'
+import Slider from 'react-rangeslider'
 
 interface StepProps {
   step: number
@@ -50,7 +51,13 @@ class App extends Component {
   metronome: Metronome
 
   state = {
-    selectedTempo: 0
+    selectedTempo: 0,
+    filterFrequencies: {
+      kick: 0,
+      clap: 0,
+      hh: 0,
+      oh: 0
+    }
   }
 
   constructor (props: {}) {
@@ -60,6 +67,9 @@ class App extends Component {
     this.handleTempo = this.handleTempo.bind(this)
     this.setTempo = this.setTempo.bind(this)
     this.state.selectedTempo = this.metronome.tempo
+    Object.keys(this.state.filterFrequencies).forEach((inst) => {
+      this.state.filterFrequencies[inst] = this.metronome.filterFrequencies[inst]
+    })
   }
 
   handlePlay () {
@@ -74,6 +84,26 @@ class App extends Component {
     this.setState({
       selectedTempo: e.currentTarget.value
     })
+  }
+
+  kickHandleChange = (value) => {
+    this.handleFrequencyChange(value, 'kick')
+  }
+  clapHandleChange = (value) => {
+    this.handleFrequencyChange(value, 'clap')
+  }
+  hhHandleChange = (value) => {
+    this.handleFrequencyChange(value, 'hh')
+  }
+  ohHandleChange = (value) => {
+    this.handleFrequencyChange(value, 'oh')
+  }
+
+  handleFrequencyChange = (value, track) => {
+    const filterFrequencies = {...this.state.filterFrequencies}
+    filterFrequencies[track] = value;
+    this.setState({filterFrequencies})
+    this.metronome.setFilterFrequency(track, value)
   }
 
   render() {
@@ -107,6 +137,19 @@ class App extends Component {
         <button 
           onClick={this.handlePlay}
         >Play/Stop</button>
+
+        {tracks.map((track, i) => {
+          return <div key={i}>
+            <Slider
+              min={0}
+              max={this.metronome.MAXLOWPASSFREQ}
+              value={this.state.filterFrequencies[track]}
+              orientation="vertical"
+              onChange={this[track + 'HandleChange']}
+            />  
+          </div>
+        })}
+        
       </div>
     )
   }

@@ -10,8 +10,9 @@ class Metronome {
   tempo = 120.0
   MINUTE = 60000
   RESOLUTION = 4
+  MAXLOWPASSFREQ = 8000
   currentStep = 0
-
+  
   instruments = ['kick', 'clap', 'hh', 'oh']
   audioElements: any = {}
   tracks: any = {}
@@ -19,16 +20,21 @@ class Metronome {
   filters: {
     [key: string]: BiquadFilterNode
   } = {}
+  filterFrequencies: {
+    [key: string]: number
+  } = {
+  }
 
   steps = {
     kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-    clap: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
     hh:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    oh:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    oh:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
   }
 
   constructor () {
     this.createWorker()
+    this.createAudioContext()
   }
 
   createWorker () {
@@ -51,22 +57,23 @@ class Metronome {
   createInstrument (instrument) {
     this.audioElements[instrument] = document.querySelector('.' + instrument)
     this.tracks[instrument] = this.audioContext!.createMediaElementSource(this.audioElements![instrument])
-    // this.filters[instrument] = this.audioContext!.createBiquadFilter()
-    // this.filters[instrument].type = 'lowpass'
-    // this.delays[instrument] = this.audioContext!.createDelay()
-    // this.delays[instrument].delayTime.value = 0.1;
-    // this.tracks[instrument].connect(this.delays[instrument])
-    // this.tracks[instrument].connect(this.filters[instrument])
-    this.tracks[instrument].connect(this.audioContext!.destination)
+    this.filters[instrument] = this.audioContext!.createBiquadFilter()
+    this.delays[instrument] = this.audioContext!.createDelay()
+
+    this.filters[instrument].type = 'lowpass'
+    this.filters[instrument].frequency.setValueAtTime(this.MAXLOWPASSFREQ, this.audioContext!.currentTime)
+    this.filterFrequencies[instrument] = this.MAXLOWPASSFREQ
+    this.filters[instrument].gain.setValueAtTime(100, this.audioContext!.currentTime)
+    
+    this.delays[instrument].delayTime.value = 100;
+
+    this.tracks[instrument].connect(this.filters[instrument])
+    this.filters[instrument].connect(this.audioContext!.destination)
+    this.filters[instrument].connect(this.delays[instrument])
     // this.delays[instrument].connect(this.audioContext!.destination)
-    // this.filters[instrument].connect(this.audioContext!.destination)
   }
 
-  play () {
-    if (!this.audioContext) {
-      this.createAudioContext()
-    }
-    
+  play () {    
     this.isPlaying = !this.isPlaying
     
     if (this.isPlaying) {
@@ -86,9 +93,6 @@ class Metronome {
     this.instruments.forEach((instrument) => {
       const _instrument = this.steps[instrument]
       const _audio = this.audioElements[instrument]
-
-      // this.filters[instrument].frequency.setValueAtTime(1000, this.audioContext!.currentTime + this.getInterval())
-      // this.filters[instrument].gain.setValueAtTime(1000, this.audioContext!.currentTime +  + this.getInterval())
 
       if (_instrument && _instrument[this.currentStep] === 1) {
         _audio.pause()
@@ -114,6 +118,11 @@ class Metronome {
     console.log('Metronome: setting new tempo to ' + tempo)
     this.tempo = tempo
     this.sendIntervalToWorker()
+  }
+
+  setFilterFrequency (track: string, frequency: number) {
+    this.filterFrequencies[track] = frequency
+    this.filters[track].frequency.setValueAtTime(frequency, this.audioContext!.currentTime)
   }
 
   sendIntervalToWorker () {
