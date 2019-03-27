@@ -53,7 +53,7 @@ export class Track {
 class Metronome {
   worker // Worker
   clock // number
-  audioContext: AudioContext
+  audioContext: AudioContext | undefined
   isPlaying = false
   tempo = 120.0
   MINUTE = 60000
@@ -67,8 +67,12 @@ class Metronome {
   } = {}
 
   constructor () {
-    this.audioContext = new AudioContext()
     this.createWorker()
+  }
+
+  createContext () {
+    if (this.audioContext) return
+    this.audioContext = new AudioContext()
     this.createTracks()
   }
 
@@ -82,11 +86,13 @@ class Metronome {
 
   createTracks () {
     this.instruments.forEach((instrument) => {
-      this.tracks[instrument] = new Track(instrument, this.audioContext)
+      this.tracks[instrument] = new Track(instrument, this.audioContext!)
     })
   }
 
-  play () {    
+  play () {
+    this.createContext()
+    
     this.isPlaying = !this.isPlaying
     
     if (this.isPlaying) {
