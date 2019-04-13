@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom';
 import React from 'react';
 import App from './App';
+import { Midi } from './Midi';
 
 export class Track {
   MAXLOWPASS = 8000
@@ -59,8 +60,8 @@ class Metronome {
   MINUTE = 60000
   RESOLUTION = 4
   currentStep = 0
-  
   instruments = ['kick', 'clap', 'hh', 'oh']
+  midi: Midi  
 
   tracks: {
     [key:string]: Track
@@ -68,6 +69,7 @@ class Metronome {
 
   constructor () {
     this.createWorker()
+    this.midi = new Midi();
   }
 
   createContext () {
