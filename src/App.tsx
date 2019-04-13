@@ -2,6 +2,7 @@ import React, { Component } from 'react'
 import './App.css'
 import Metronome, { Track } from './Metronome'
 import Slider from 'react-rangeslider'
+import Twist from './Twist';
 
 interface StepProps {
   step: number
@@ -127,6 +128,8 @@ class App extends Component {
         <button 
           onClick={this.handlePlay}
         >Play/Stop</button>
+
+        <Twist metronome={this.metronome} />
 
         {tracks.map((track, i) => {
           return <div key={i}>
